@@ -1,0 +1,80 @@
+services:
+  gateway:
+    build: ./gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - SECRET_KEY=your-secret-key-for-local-dev
+      - AUTH_SERVICE_URL=http://auth-service:8000
+      - HEALTH_SERVICE_URL=http://health-service:8000
+      - CAREER_SERVICE_URL=http://career-service:8000
+      - RELATIONSHIP_SERVICE_URL=http://relationship-service:8000
+      - FINANCE_SERVICE_URL=http://finance-service:8000
+      - ADMIN_SERVICE_URL=http://admin-service:8000
+    depends_on:
+      - auth-service
+      - health-service
+      - career-service
+      - relationship-service
+      - finance-service
+      - admin-service
+
+  auth-service:
+    build: ./services/auth
+    environment:
+      - DATABASE_URL=sqlite:///./auth.db
+      - SECRET_KEY=your-secret-key-for-local-dev
+    volumes:
+      - ./services/auth:/app
+      - ./shared:/app/shared
+
+  health-service:
+    build: ./services/health
+    environment:
+      - DATABASE_URL=sqlite:///./health.db
+      - SECRET_KEY=your-secret-key-for-local-dev
+    volumes:
+      - ./services/health:/app
+
+  career-service:
+    build: ./services/career
+    environment:
+      - DATABASE_URL=sqlite:///./career.db
+      - SECRET_KEY=your-secret-key-for-local-dev
+    volumes:
+      - ./services/career:/app
+
+  relationship-service:
+    build: ./services/relationship
+    environment:
+      - DATABASE_URL=sqlite:///./relationship.db
+      - SECRET_KEY=your-secret-key-for-local-dev
+    volumes:
+      - ./services/relationship:/app
+
+  finance-service:
+    build: ./services/finance
+    environment:
+      - DATABASE_URL=sqlite:///./finance.db
+      - SECRET_KEY=your-secret-key-for-local-dev
+    volumes:
+      - ./services/finance:/app
+
+  admin-service:
+    build: ./services/admin
+    environment:
+      - DATABASE_URL=sqlite:///./admin.db
+      - SECRET_KEY=your-secret-key-for-local-dev
+    volumes:
+      - ./services/admin:/app
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_GATEWAY_URL=http://localhost:8080
+    depends_on:
+      - gateway

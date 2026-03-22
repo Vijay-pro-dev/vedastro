@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+httpx
+python-jose[cryptography]
+pydantic
+pydantic-settings
+python-multipart
+# For HTTPS (optional locally, but good for production)
+uvicorn[standard]
