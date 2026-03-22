@@ -1,8 +1,10 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { FaChartLine, FaClock, FaLightbulb, FaUser, FaSignOutAlt } from "react-icons/fa"
+import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiUserPlus } from "react-icons/fi"
 import { useUser } from "../context/UserContext"
 import API_BASE_URL from "../config"
+import axios from "axios"
 
 function LandingPage() {
   const navigate = useNavigate()
@@ -11,8 +13,16 @@ function LandingPage() {
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
+  
+  // Form states
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [name, setName] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [passwordStrength, setPasswordStrength] = useState(0)
+  
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   
@@ -23,44 +33,77 @@ function LandingPage() {
   const [address, setAddress] = useState(user?.address || "")
   const [birthTimeAccuracy, setBirthTimeAccuracy] = useState(user?.birth_time_accuracy || "estimated")
 
+  // Password strength logic
+  const calculatePasswordStrength = (pass) => {
+    let strength = 0
+    if (!pass) return 0
+    if (pass.length >= 8) strength += 25
+    if (pass.length >= 12) strength += 15
+    if (/[a-z]/.test(pass)) strength += 15
+    if (/[A-Z]/.test(pass)) strength += 15
+    if (/[0-9]/.test(pass)) strength += 15
+    if (/[^A-Za-z0-9]/.test(pass)) strength += 15
+    return Math.min(strength, 100)
+  }
+
+  const handlePasswordChange = (e) => {
+    const pass = e.target.value
+    setPassword(pass)
+    setPasswordStrength(calculatePasswordStrength(pass))
+  }
+
+  const getPasswordStrengthLabel = () => {
+    if (passwordStrength < 25) return "Weak"
+    if (passwordStrength < 50) return "Fair"
+    if (passwordStrength < 75) return "Good"
+    return "Strong"
+  }
+
+  const getPasswordStrengthColor = () => {
+    if (passwordStrength < 25) return "#f87171"
+    if (passwordStrength < 50) return "#fb923c"
+    if (passwordStrength < 75) return "#fbbf24"
+    return "#34d399"
+  }
+
   const handleSignup = async (e) => {
     e.preventDefault()
+    
+    if (password !== confirmPassword) {
+      setError("Passwords do not match")
+      return
+    }
+
     setLoading(true)
     setError("")
 
     try {
       // Signup
-      const signupRes = await fetch(`${API_BASE_URL}/auth/signup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
+      const signupRes = await axios.post(`${API_BASE_URL}/auth/signup`, {
+        email,
+        password,
+        name: name || email.split("@")[0]
       })
-
-      if (!signupRes.ok) throw new Error("Signup failed")
 
       // Auto login after signup
-      const loginRes = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
+      const loginRes = await axios.post(`${API_BASE_URL}/auth/login`, {
+        email,
+        password
       })
 
-      if (!loginRes.ok) throw new Error("Login failed")
-
-      const loginData = await loginRes.json()
+      const loginData = loginRes.data
 
       // Store user and close modal
       loginUser({ 
         email, 
         id: loginData.user?.id || Math.random(),
         role: loginData.user?.role || "user",
-        name: loginData.user?.name || email.split("@")[0]
+        name: loginData.user?.name || name || email.split("@")[0]
       })
       setShowSignupModal(false)
-      setEmail("")
-      setPassword("")
+      resetForm()
     } catch (err) {
-      setError(err.message)
+      setError(err.response?.data?.detail || err.message || "Signup failed")
     } finally {
       setLoading(false)
     }
@@ -72,19 +115,16 @@ function LandingPage() {
     setError("")
 
     try {
-      const loginRes = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
+      const loginRes = await axios.post(`${API_BASE_URL}/auth/login`, {
+        email,
+        password
       })
 
-      const data = await loginRes.json()
-
-      if (!loginRes.ok) throw new Error(data.detail || "Login failed")
+      const data = loginRes.data
 
       // Fetch user birth data
-      const userDataRes = await fetch(`${API_BASE_URL}/health/user/birth-data?email=${email}`)
-      const userData = await userDataRes.json()
+      const userDataRes = await axios.get(`${API_BASE_URL}/health/user/birth-data?email=${email}`)
+      const userData = userDataRes.data
 
       // Store user with all info
       const userInfo = { 
@@ -101,8 +141,7 @@ function LandingPage() {
       
       loginUser(userInfo)
       setShowLoginModal(false)
-      setEmail("")
-      setPassword("")
+      resetForm()
       
       // Update form fields with fetched data
       setDob(userData.dob || "")
@@ -111,10 +150,19 @@ function LandingPage() {
       setAddress(userData.address || "")
       setBirthTimeAccuracy(userData.birth_time_accuracy || "estimated")
     } catch (err) {
-      setError(err.message)
+      setError(err.response?.data?.detail || err.message || "Login failed")
     } finally {
       setLoading(false)
     }
+  }
+
+  const resetForm = () => {
+    setEmail("")
+    setPassword("")
+    setConfirmPassword("")
+    setName("")
+    setError("")
+    setPasswordStrength(0)
   }
 
   const handleUpdateProfile = async (e) => {
@@ -236,31 +284,85 @@ function LandingPage() {
       </nav>
       {/* Signup Modal */}
       {showSignupModal && !user && (
-        <div className="modal-overlay" onClick={() => setShowSignupModal(false)}>
+        <div className="modal-overlay" onClick={() => { setShowSignupModal(false); resetForm(); }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h2>Join Vedastro</h2>
             <p>Start your career analysis today</p>
 
             <form onSubmit={handleSignup}>
               <div className="modal-input-group">
-                <input 
-                  type="email"
-                  placeholder="Your Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
+                <div className="input-with-icon">
+                  <FiUser className="input-icon" />
+                  <input 
+                    type="text"
+                    placeholder="Full Name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </div>
               </div>
 
               <div className="modal-input-group">
-                <input 
-                  type="password"
-                  placeholder="Create Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength="6"
-                />
+                <div className="input-with-icon">
+                  <FiMail className="input-icon" />
+                  <input 
+                    type="email"
+                    placeholder="Your Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="modal-input-group">
+                <div className="input-with-icon">
+                  <FiLock className="input-icon" />
+                  <input 
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Create Password"
+                    value={password}
+                    onChange={handlePasswordChange}
+                    required
+                    minLength="6"
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <FiEyeOff /> : <FiEye />}
+                  </button>
+                </div>
+                {password && (
+                  <div className="password-strength">
+                    <div className="strength-bar">
+                      <div className="strength-fill" style={{ width: `${passwordStrength}%`, backgroundColor: getPasswordStrengthColor() }}></div>
+                    </div>
+                    <span className="strength-label" style={{ color: getPasswordStrengthColor() }}>{getPasswordStrengthLabel()}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-input-group">
+                <div className="input-with-icon">
+                  <FiLock className="input-icon" />
+                  <input 
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Confirm Password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    minLength="6"
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
+                  </button>
+                </div>
               </div>
 
               {error && <p className="error-msg">{error}</p>}
@@ -272,11 +374,26 @@ function LandingPage() {
               >
                 {loading ? "Creating Account..." : "Sign Up & Continue"}
               </button>
+
+              <p style={{textAlign: "center", marginTop: "16px", fontSize: "14px", color: "rgba(255,255,255,0.7)"}}>
+                Already have an account? 
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setShowSignupModal(false)
+                    setShowLoginModal(true)
+                    resetForm()
+                  }}
+                  style={{background: "none", border: "none", color: "#00f5ff", cursor: "pointer", marginLeft: "4px", textDecoration: "underline"}}
+                >
+                  Login here
+                </button>
+              </p>
             </form>
 
             <button 
               className="close-modal"
-              onClick={() => setShowSignupModal(false)}
+              onClick={() => { setShowSignupModal(false); resetForm(); }}
             >
               ✕
             </button>
@@ -286,31 +403,44 @@ function LandingPage() {
 
       {/* Login Modal */}
       {showLoginModal && !user && (
-        <div className="modal-overlay" onClick={() => setShowLoginModal(false)}>
+        <div className="modal-overlay" onClick={() => { setShowLoginModal(false); resetForm(); }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h2>Welcome Back</h2>
             <p>Login to your Vedastro account</p>
 
             <form onSubmit={handleLogin}>
               <div className="modal-input-group">
-                <input 
-                  type="email"
-                  placeholder="Your Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
+                <div className="input-with-icon">
+                  <FiMail className="input-icon" />
+                  <input 
+                    type="email"
+                    placeholder="Your Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
               </div>
 
               <div className="modal-input-group">
-                <input 
-                  type="password"
-                  placeholder="Your Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength="6"
-                />
+                <div className="input-with-icon">
+                  <FiLock className="input-icon" />
+                  <input 
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Your Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength="6"
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <FiEyeOff /> : <FiEye />}
+                  </button>
+                </div>
               </div>
 
               {error && <p className="error-msg">{error}</p>}
@@ -330,9 +460,7 @@ function LandingPage() {
                   onClick={() => {
                     setShowLoginModal(false)
                     setShowSignupModal(true)
-                    setEmail("")
-                    setPassword("")
-                    setError("")
+                    resetForm()
                   }}
                   style={{background: "none", border: "none", color: "#00f5ff", cursor: "pointer", marginLeft: "4px", textDecoration: "underline"}}
                 >
@@ -343,7 +471,7 @@ function LandingPage() {
 
             <button 
               className="close-modal"
-              onClick={() => setShowLoginModal(false)}
+              onClick={() => { setShowLoginModal(false); resetForm(); }}
             >
               ✕
             </button>
@@ -543,6 +671,175 @@ function LandingPage() {
           </div>
         </div>
       </section>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        /* Modal Styles */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.85);
+          backdrop-filter: blur(8px);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 1000;
+          animation: fadeIn 0.3s ease;
+        }
+        .modal-content {
+          background: #16171d;
+          padding: 40px;
+          border-radius: 20px;
+          width: 100%;
+          max-width: 420px;
+          position: relative;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+          animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .modal-content h2 {
+          margin: 0 0 10px 0;
+          color: #fff;
+          font-size: 28px;
+          text-align: center;
+        }
+        .modal-content p {
+          color: rgba(255, 255, 255, 0.6);
+          text-align: center;
+          margin-bottom: 30px;
+          font-size: 15px;
+        }
+        .modal-input-group {
+          margin-bottom: 20px;
+        }
+        .input-with-icon {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+        .input-icon {
+          position: absolute;
+          left: 14px;
+          color: rgba(255, 255, 255, 0.4);
+          font-size: 18px;
+        }
+        .modal-input-group input {
+          width: 100%;
+          padding: 14px 14px 14px 45px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.05);
+          color: #fff;
+          font-size: 15px;
+          outline: none;
+          transition: all 0.3s ease;
+          box-sizing: border-box;
+        }
+        .modal-input-group input:focus {
+          border-color: #00f5ff;
+          background: rgba(255, 255, 255, 0.08);
+          box-shadow: 0 0 0 4px rgba(0, 245, 255, 0.1);
+        }
+        .password-toggle {
+          position: absolute;
+          right: 14px;
+          background: none;
+          border: none;
+          color: rgba(255, 255, 255, 0.4);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          padding: 0;
+          font-size: 18px;
+        }
+        .password-toggle:hover {
+          color: #fff;
+        }
+        .password-strength {
+          margin-top: 10px;
+        }
+        .strength-bar {
+          height: 6px;
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 3px;
+          overflow: hidden;
+        }
+        .strength-fill {
+          height: 100%;
+          transition: width 0.4s ease;
+        }
+        .strength-label {
+          font-size: 12px;
+          margin-top: 6px;
+          display: block;
+          text-align: right;
+          font-weight: 600;
+        }
+        .modal-btn {
+          width: 100%;
+          padding: 16px;
+          background: #00f5ff;
+          color: #000;
+          border: none;
+          border-radius: 12px;
+          font-weight: 700;
+          font-size: 16px;
+          cursor: pointer;
+          margin-top: 10px;
+          transition: all 0.3s ease;
+        }
+        .modal-btn:hover {
+          background: #00d8e0;
+          transform: translateY(-2px);
+          box-shadow: 0 10px 20px rgba(0, 245, 255, 0.2);
+        }
+        .modal-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          transform: none;
+        }
+        .error-msg {
+          color: #f87171;
+          font-size: 14px;
+          margin-bottom: 15px;
+          text-align: center;
+          background: rgba(248, 113, 113, 0.1);
+          padding: 10px;
+          border-radius: 8px;
+          border: 1px solid rgba(248, 113, 113, 0.2);
+        }
+        .close-modal {
+          position: absolute;
+          top: 20px;
+          right: 20px;
+          background: rgba(255, 255, 255, 0.05);
+          border: none;
+          color: rgba(255, 255, 255, 0.5);
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .close-modal:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: #fff;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}} />
     </div>
   )
 }

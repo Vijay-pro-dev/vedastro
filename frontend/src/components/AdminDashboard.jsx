@@ -184,6 +184,7 @@ const AdminDashboard = () => {
                         <tr>
                             <th>User Email</th>
                             <th>Action</th>
+                            <th>Details</th>
                             <th>Timestamp</th>
                         </tr>
                     </thead>
@@ -196,6 +197,7 @@ const AdminDashboard = () => {
                                         {activity.action}
                                     </span>
                                 </td>
+                                <td className="details-cell">{activity.details || "-"}</td>
                                 <td className="time-cell">{new Date(activity.timestamp).toLocaleString()}</td>
                             </tr>
                         ))}
@@ -554,7 +556,9 @@ const AdminDashboard = () => {
                     font-size: 0.95rem;
                 }
                 .email-cell { font-weight: 600; color: rgba(255, 255, 255, 0.9); }
+                .details-cell { color: rgba(255, 255, 255, 0.6); font-size: 0.9rem; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
                 .time-cell { color: rgba(255, 255, 255, 0.5); font-size: 0.85rem; }
+
                 .badge {
                     padding: 0.35rem 0.75rem;
                     border-radius: 6px;

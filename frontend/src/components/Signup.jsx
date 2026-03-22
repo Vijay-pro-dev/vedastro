@@ -104,9 +104,13 @@ function Signup() {
 
   return (
     <div className="auth-page signup-page">
-      <div className="auth-container">
+      <div className="auth-background">
+        <div className="bg-circle bg-circle-1"></div>
+        <div className="bg-circle bg-circle-2"></div>
+      </div>
+      <div className="auth-container" style={{maxWidth: "450px", gridTemplateColumns: "1fr"}}>
         <div className="auth-card">
-          <div className="auth-header">
+          <div className="auth-header" style={{textAlign: "center"}}>
             <h1>Create Account 🚀</h1>
             <p>Join our community to get career guidance</p>
           </div>
@@ -198,13 +202,13 @@ function Signup() {
               </div>
             </div>
 
-            <button type="submit" className="auth-button" disabled={isLoading}>
+            <button type="submit" className="auth-button" disabled={isLoading} style={{background: "#00f5ff", color: "#000"}}>
               {isLoading ? "Creating Account..." : <><FiUserPlus /> Sign Up</>}
             </button>
           </form>
 
-          <div className="auth-footer">
-            <p>Already have an account? <Link to="/login">Login here</Link></p>
+          <div className="auth-footer" style={{textAlign: "center", marginTop: "20px"}}>
+            <p>Already have an account? <Link to="/login" style={{color: "#00f5ff"}}>Login here</Link></p>
           </div>
         </div>
       </div>
