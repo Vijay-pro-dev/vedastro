@@ -73,3 +73,37 @@ def estimate_birth_time(data: schemas.BirthTimeQuestionnaire, db: Session = Depe
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
+
+@app.get("/user/birth-data", response_model=schemas.BirthData)
+def get_birth_data(email: str, db: Session = Depends(get_db)):
+    # In a real microservices app, we would call the Auth service to get user_id from email
+    # or the Gateway would have already resolved this.
+    # For now, we'll try to find it by email if we stored email, but the model has user_id.
+    # We'll assume the client passes the email and we need to resolve it.
+    
+    # Let's try to get birth data by user_id if possible, but here we only have email.
+    # For now, we'll just mock it or try to find a way to link them.
+    # In this specific task, let's just implement the endpoint.
+    
+    # We'll add a temporary way to query by email or just return 404 if not found.
+    # In the current models.py, BirthData has user_id but not email.
+    
+    # Let's check if we can get user_id from auth service
+    AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://localhost:8001")
+    import httpx
+    
+    try:
+        import httpx
+        with httpx.Client() as client:
+            response = client.get(f"{AUTH_SERVICE_URL}/users/{email}")
+            if response.status_code == 200:
+                user_data = response.json()
+                user_id = user_data.get("id")
+                birth_data = db.query(models.BirthData).filter(models.BirthData.user_id == user_id).first()
+                if not birth_data:
+                    raise HTTPException(status_code=404, detail="Birth data not found")
+                return birth_data
+    except Exception as e:
+        print(f"Error resolving user: {e}")
+    
+    raise HTTPException(status_code=404, detail="User or birth data not found")

@@ -47,8 +47,15 @@ function LandingPage() {
 
       if (!loginRes.ok) throw new Error("Login failed")
 
+      const loginData = await loginRes.json()
+
       // Store user and close modal
-      loginUser({ email, id: Math.random() })
+      loginUser({ 
+        email, 
+        id: loginData.user?.id || Math.random(),
+        role: loginData.user?.role || "user",
+        name: loginData.user?.name || email.split("@")[0]
+      })
       setShowSignupModal(false)
       setEmail("")
       setPassword("")
@@ -82,7 +89,9 @@ function LandingPage() {
       // Store user with all info
       const userInfo = { 
         email, 
-        id: data.user_id || Math.random(),
+        id: data.user?.id || Math.random(),
+        role: data.user?.role || "user",
+        name: data.user?.name || email.split("@")[0],
         dob: userData.dob || "",
         birth_time: userData.birth_time || "",
         birth_place: userData.birth_place || "",
@@ -476,9 +485,9 @@ function LandingPage() {
               </button>
               <button 
                 className="btn secondary"
-                onClick={() => navigate("/dashboard")}
+                onClick={() => navigate(user.role === "admin" ? "/admin/dashboard" : "/dashboard")}
               >
-                View Dashboard
+                {user.role === "admin" ? "Admin Dashboard" : "View Dashboard"}
               </button>
             </div>
           )}

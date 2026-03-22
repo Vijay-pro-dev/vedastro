@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from database import engine, Base, get_db
 import models, schemas
 import os
-from datetime import timedelta
+from datetime import timedelta, datetime
 # Assuming shared/auth/utils.py exists relative to the app's context
 # In production, this might be a library or common folder in Docker
 # For local dev, we'll import it relative or duplicate it if needed
@@ -44,6 +44,11 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
     if not db_user or not verify_password(user.password, db_user.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
+    # Update last login and is_online
+    db_user.last_login = datetime.utcnow()
+    db_user.is_online = True
+    db.commit()
+
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": db_user.email, "user_id": db_user.id, "role": db_user.role},
@@ -59,6 +64,52 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
             "name": db_user.name,
             "role": db_user.role
         }
+    }
+
+@app.get("/users/stats")
+def get_user_stats(db: Session = Depends(get_db)):
+    total_users = db.query(models.User).count()
+    users_signed_up = db.query(models.User).count() # This is the same as total_users for now
+    users_online = db.query(models.User).filter(models.User.is_online == True).count()
+    
+    return {
+        "total_users": total_users,
+        "users_signed_up": users_signed_up,
+        "users_online": users_online
+    }
+
+@app.get("/users/activities")
+def get_user_activities(db: Session = Depends(get_db)):
+    # Return recent user signups and logins
+    recent_users = db.query(models.User).order_by(models.User.created_at.desc()).limit(10).all()
+    activities = []
+    for user in recent_users:
+        activities.append({
+            "user": user.email,
+            "action": "Signed Up",
+            "timestamp": user.created_at
+        })
+        if user.last_login:
+            activities.append({
+                "user": user.email,
+                "action": "Logged In",
+                "timestamp": user.last_login
+            })
+    
+    # Sort all by timestamp
+    activities.sort(key=lambda x: x["timestamp"], reverse=True)
+    return activities[:20]
+
+@app.get("/users/{email}")
+def get_user_by_email(email: str, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {
+        "id": user.id,
+        "email": user.email,
+        "name": user.name,
+        "role": user.role
     }
 
 @app.get("/health")

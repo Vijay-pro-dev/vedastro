@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime
 from datetime import datetime
-from .database import Base
+from database import Base
 
 class RelationshipRecord(Base):
     __tablename__ = "relationship_records"

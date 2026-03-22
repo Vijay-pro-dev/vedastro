@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from .database import engine, Base
-from . import models, schemas
+from database import engine, Base
+import models, schemas
 
 # Initialize database
 Base.metadata.create_all(bind=engine)

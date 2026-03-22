@@ -9,4 +9,6 @@ class User(Base):
     password = Column(String)
     name = Column(String)
     role = Column(String, default="user") # user, admin
+    is_online = Column(Boolean, default=False)
+    last_login = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

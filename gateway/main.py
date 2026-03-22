@@ -8,14 +8,14 @@ from typing import Optional
 
 app = FastAPI(title="API Gateway", version="1.0.0")
 
-# Service URLs (configurable via environment)
+# Define services and their URLs
 SERVICES = {
-    "auth": os.getenv("AUTH_SERVICE_URL", "http://auth-service:8000"),
-    "health": os.getenv("HEALTH_SERVICE_URL", "http://health-service:8000"),
-    "career": os.getenv("CAREER_SERVICE_URL", "http://career-service:8000"),
-    "relationship": os.getenv("RELATIONSHIP_SERVICE_URL", "http://relationship-service:8000"),
-    "finance": os.getenv("FINANCE_SERVICE_URL", "http://finance-service:8000"),
-    "admin": os.getenv("ADMIN_SERVICE_URL", "http://admin-service:8000"),
+    "auth": os.getenv("AUTH_SERVICE_URL", "http://localhost:8001"),
+    "health": os.getenv("HEALTH_SERVICE_URL", "http://localhost:8002"),
+    "career": os.getenv("CAREER_SERVICE_URL", "http://localhost:8003"),
+    "relationship": os.getenv("RELATIONSHIP_SERVICE_URL", "http://localhost:8004"),
+    "finance": os.getenv("FINANCE_SERVICE_URL", "http://localhost:8005"),
+    "admin": os.getenv("ADMIN_SERVICE_URL", "http://localhost:8006"),
 }
 
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-for-local-dev")
@@ -67,6 +67,8 @@ async def proxy_request(service_name: str, path: str, request: Request, user_pay
             
         # Remove host header to avoid conflicts
         headers.pop("host", None)
+        # Remove content-length as it will be recalculated
+        headers.pop("content-length", None)
 
         try:
             # Prepare request body
@@ -82,13 +84,29 @@ async def proxy_request(service_name: str, path: str, request: Request, user_pay
             )
             
             # Return the response from the service
+            # For JSON responses, use JSONResponse to avoid streaming issues
+            if "application/json" in response.headers.get("content-type", ""):
+                return JSONResponse(
+                    content=response.json(),
+                    status_code=response.status_code
+                )
+            
+            # For other types, use streaming but exclude problematic headers
+            excluded_headers = ["content-encoding", "content-length", "transfer-encoding", "connection"]
+            resp_headers = {
+                k: v for k, v in response.headers.items() 
+                if k.lower() not in excluded_headers
+            }
+            
             return StreamingResponse(
                 response.aiter_raw(),
                 status_code=response.status_code,
-                headers=dict(response.headers)
+                headers=resp_headers
             )
         except httpx.RequestError as exc:
             raise HTTPException(status_code=503, detail=f"Service {service_name} unavailable: {str(exc)}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Gateway error: {str(e)}")
 
 @app.api_route("/{service_name}/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
 async def gateway(service_name: str, path: str, request: Request, user_payload: Optional[dict] = Depends(verify_token)):
@@ -97,6 +115,7 @@ async def gateway(service_name: str, path: str, request: Request, user_payload: 
         ("auth", "login"),
         ("auth", "signup"),
         ("health", "public"),
+        ("health", "user/birth-data"),
     ]
     
     is_public = (service_name, path) in public_routes or path.startswith("health") # Example: /health/ is public

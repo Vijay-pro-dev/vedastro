@@ -17,3 +17,8 @@ class AdminLog(AdminLogBase):
 
     class Config:
         from_attributes = True
+
+class AdminLogin(BaseModel):
+    email: str
+    password: str
+
