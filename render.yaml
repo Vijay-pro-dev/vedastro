@@ -47,7 +47,7 @@ services:
     startCommand: export PYTHONPATH=$PYTHONPATH:. && python -m uvicorn services.auth.main:app --host 0.0.0.0 --port 10000
     envVars:
       - key: DATABASE_URL
-        sync: false # Set this manually in Render dashboard to your PostgreSQL URL
+        value: postgresql://neondb_owner:npg_RrpGMVxc6E4i@ep-old-hat-a8mn2ldd-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require
       - key: SECRET_KEY
         fromService:
           name: vedastro-gateway
@@ -62,7 +62,7 @@ services:
     startCommand: export PYTHONPATH=$PYTHONPATH:. && python -m uvicorn services.health.main:app --host 0.0.0.0 --port 10000
     envVars:
       - key: DATABASE_URL
-        sync: false
+        value: postgresql://neondb_owner:npg_RrpGMVxc6E4i@ep-old-hat-a8mn2ldd-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require
       - key: AUTH_SERVICE_URL
         fromService:
           name: vedastro-auth
@@ -77,8 +77,8 @@ services:
     startCommand: export PYTHONPATH=$PYTHONPATH:. && python -m uvicorn services.career.main:app --host 0.0.0.0 --port 10000
     envVars:
       - key: DATABASE_URL
-        sync: false
-
+        value: postgresql://neondb_owner:npg_RrpGMVxc6E4i@ep-old-hat-a8mn2ldd-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require
+  
   # Relationship Service
   - type: web
     name: vedastro-relationship
@@ -87,8 +87,8 @@ services:
     startCommand: export PYTHONPATH=$PYTHONPATH:. && python -m uvicorn services.relationship.main:app --host 0.0.0.0 --port 10000
     envVars:
       - key: DATABASE_URL
-        sync: false
-
+        value: postgresql://neondb_owner:npg_RrpGMVxc6E4i@ep-old-hat-a8mn2ldd-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require
+  
   # Finance Service
   - type: web
     name: vedastro-finance
@@ -97,8 +97,8 @@ services:
     startCommand: export PYTHONPATH=$PYTHONPATH:. && python -m uvicorn services.finance.main:app --host 0.0.0.0 --port 10000
     envVars:
       - key: DATABASE_URL
-        sync: false
-
+        value: postgresql://neondb_owner:npg_RrpGMVxc6E4i@ep-old-hat-a8mn2ldd-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require
+  
   # Admin Service
   - type: web
     name: vedastro-admin
@@ -107,7 +107,7 @@ services:
     startCommand: export PYTHONPATH=$PYTHONPATH:. && python -m uvicorn services.admin.main:app --host 0.0.0.0 --port 10000
     envVars:
       - key: DATABASE_URL
-        sync: false
+        value: postgresql://neondb_owner:npg_RrpGMVxc6E4i@ep-old-hat-a8mn2ldd-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require
       - key: AUTH_SERVICE_URL
         fromService:
           name: vedastro-auth
