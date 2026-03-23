@@ -2,7 +2,9 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from database import engine, Base, get_db
 import models, schemas
+import httpx
 import os
+from shared.auth.utils import log_user_activity
 
 # Initialize database
 Base.metadata.create_all(bind=engine)
@@ -75,7 +77,10 @@ def health_check():
     return {"status": "healthy"}
 
 @app.get("/user/birth-data", response_model=schemas.BirthData)
-def get_birth_data(email: str, db: Session = Depends(get_db)):
+async def get_birth_data(email: str, db: Session = Depends(get_db)):
+    # Log activity
+    await log_user_activity(email, "Fetch Birth Data", "User requested birth data")
+    
     # In a real microservices app, we would call the Auth service to get user_id from email
     # or the Gateway would have already resolved this.
     # For now, we'll try to find it by email if we stored email, but the model has user_id.

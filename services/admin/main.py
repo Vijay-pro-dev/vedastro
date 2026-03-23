@@ -5,9 +5,11 @@ from database import engine, Base, get_db
 import models, schemas
 import httpx
 import os
+from shared.auth.utils import log_user_activity
 
 # Initialize database
 Base.metadata.create_all(bind=engine)
+
 
 app = FastAPI(title="Admin Microservice", version="1.0.0")
 
@@ -60,6 +62,9 @@ async def admin_login(user_credentials: schemas.AdminLogin):
 
 @app.get("/dashboard/stats")
 async def get_dashboard_stats():
+    # In a real app, we'd extract user from token. For simplicity, we'll log as admin.
+    await log_user_activity("admin-system", "View Dashboard Stats", "Admin accessed system stats")
+    
     # Call Auth service for user stats
     try:
         async with httpx.AsyncClient() as client:

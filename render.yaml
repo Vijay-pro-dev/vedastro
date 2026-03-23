@@ -1,0 +1,128 @@
+services:
+  # API Gateway
+  - type: web
+    name: vedastro-gateway
+    env: python
+    buildCommand: pip install -r gateway/requirements.txt
+    startCommand: export PYTHONPATH=$PYTHONPATH:. && python -m uvicorn gateway.main:app --host 0.0.0.0 --port 10000
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: AUTH_SERVICE_URL
+        fromService:
+          name: vedastro-auth
+          type: web
+          property: host
+      - key: HEALTH_SERVICE_URL
+        fromService:
+          name: vedastro-health
+          type: web
+          property: host
+      - key: CAREER_SERVICE_URL
+        fromService:
+          name: vedastro-career
+          type: web
+          property: host
+      - key: RELATIONSHIP_SERVICE_URL
+        fromService:
+          name: vedastro-relationship
+          type: web
+          property: host
+      - key: FINANCE_SERVICE_URL
+        fromService:
+          name: vedastro-finance
+          type: web
+          property: host
+      - key: ADMIN_SERVICE_URL
+        fromService:
+          name: vedastro-admin
+          type: web
+          property: host
+
+  # Auth Service
+  - type: web
+    name: vedastro-auth
+    env: python
+    buildCommand: pip install -r services/auth/requirements.txt
+    startCommand: export PYTHONPATH=$PYTHONPATH:. && python -m uvicorn services.auth.main:app --host 0.0.0.0 --port 10000
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://neondb_owner:npg_RrpGMVxc6E4i@ep-old-hat-a8mn2ldd-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require
+      - key: SECRET_KEY
+        fromService:
+          name: vedastro-gateway
+          type: web
+          envVarKey: SECRET_KEY
+
+  # Health Service
+  - type: web
+    name: vedastro-health
+    env: python
+    buildCommand: pip install -r services/health/requirements.txt
+    startCommand: export PYTHONPATH=$PYTHONPATH:. && python -m uvicorn services.health.main:app --host 0.0.0.0 --port 10000
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://neondb_owner:npg_RrpGMVxc6E4i@ep-old-hat-a8mn2ldd-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require
+      - key: AUTH_SERVICE_URL
+        fromService:
+          name: vedastro-auth
+          type: web
+          property: host
+
+  # Career Service
+  - type: web
+    name: vedastro-career
+    env: python
+    buildCommand: pip install -r services/career/requirements.txt
+    startCommand: export PYTHONPATH=$PYTHONPATH:. && python -m uvicorn services.career.main:app --host 0.0.0.0 --port 10000
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://neondb_owner:npg_RrpGMVxc6E4i@ep-old-hat-a8mn2ldd-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require
+  
+  # Relationship Service
+  - type: web
+    name: vedastro-relationship
+    env: python
+    buildCommand: pip install -r services/relationship/requirements.txt
+    startCommand: export PYTHONPATH=$PYTHONPATH:. && python -m uvicorn services.relationship.main:app --host 0.0.0.0 --port 10000
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://neondb_owner:npg_RrpGMVxc6E4i@ep-old-hat-a8mn2ldd-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require
+  
+  # Finance Service
+  - type: web
+    name: vedastro-finance
+    env: python
+    buildCommand: pip install -r services/finance/requirements.txt
+    startCommand: export PYTHONPATH=$PYTHONPATH:. && python -m uvicorn services.finance.main:app --host 0.0.0.0 --port 10000
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://neondb_owner:npg_RrpGMVxc6E4i@ep-old-hat-a8mn2ldd-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require
+  
+  # Admin Service
+  - type: web
+    name: vedastro-admin
+    env: python
+    buildCommand: pip install -r services/admin/requirements.txt
+    startCommand: export PYTHONPATH=$PYTHONPATH:. && python -m uvicorn services.admin.main:app --host 0.0.0.0 --port 10000
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://neondb_owner:npg_RrpGMVxc6E4i@ep-old-hat-a8mn2ldd-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require
+      - key: AUTH_SERVICE_URL
+        fromService:
+          name: vedastro-auth
+          type: web
+          property: host
+
+  # Frontend (Static Site)
+  - type: static
+    name: vedastro-frontend
+    env: static
+    buildCommand: npm install && npm run build
+    publishDir: frontend/dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          name: vedastro-gateway
+          type: web
+          property: host

@@ -18,8 +18,28 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Auth Microservice", version="1.0.0")
 
+# Helper function for logging
+def log_activity(db: Session, email: str, action: str, details: str = None, ip: str = None):
+    try:
+        new_log = models.ActivityLog(
+            user_email=email,
+            action=action,
+            details=details,
+            ip_address=ip
+        )
+        db.add(new_log)
+        db.commit()
+    except Exception as e:
+        print(f"Error logging activity: {e}")
+        db.rollback()
+
 # Constants
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
+
+@app.post("/activities/log")
+def create_activity_log(log: schemas.ActivityLogCreate, db: Session = Depends(get_db)):
+    log_activity(db, log.user_email, log.action, log.details, log.ip_address)
+    return {"message": "Activity logged"}
 
 @app.post("/signup", response_model=schemas.UserResponse)
 def signup(user: schemas.UserCreate, db: Session = Depends(get_db)):
@@ -36,12 +56,18 @@ def signup(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+
+    # Log activity
+    log_activity(db, new_user.email, "Signup", "User registered successfully")
+
     return new_user
 
 @app.post("/login")
 def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.email == user.email).first()
     if not db_user or not verify_password(user.password, db_user.password):
+        # Log failed login
+        log_activity(db, user.email, "Login Failed", "Invalid credentials")
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     # Update last login and is_online
@@ -49,7 +75,11 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
     db_user.is_online = True
     db.commit()
 
+    # Log successful login
+    log_activity(db, db_user.email, "Login", "User logged in successfully")
+
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
     access_token = create_access_token(
         data={"sub": db_user.email, "user_id": db_user.id, "role": db_user.role},
         expires_delta=access_token_expires
@@ -80,25 +110,20 @@ def get_user_stats(db: Session = Depends(get_db)):
 
 @app.get("/users/activities")
 def get_user_activities(db: Session = Depends(get_db)):
-    # Return recent user signups and logins
-    recent_users = db.query(models.User).order_by(models.User.created_at.desc()).limit(10).all()
-    activities = []
-    for user in recent_users:
-        activities.append({
-            "user": user.email,
-            "action": "Signed Up",
-            "timestamp": user.created_at
-        })
-        if user.last_login:
-            activities.append({
-                "user": user.email,
-                "action": "Logged In",
-                "timestamp": user.last_login
-            })
+    # Fetch recent activities from the new table
+    recent_logs = db.query(models.ActivityLog).order_by(models.ActivityLog.timestamp.desc()).limit(20).all()
     
-    # Sort all by timestamp
-    activities.sort(key=lambda x: x["timestamp"], reverse=True)
-    return activities[:20]
+    activities = []
+    for log in recent_logs:
+        activities.append({
+            "user": log.user_email,
+            "action": log.action,
+            "timestamp": log.timestamp,
+            "details": log.details
+        })
+    
+    return activities
+
 
 @app.get("/users/{email}")
 def get_user_by_email(email: str, db: Session = Depends(get_db)):
